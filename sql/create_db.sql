@@ -1,0 +1,32 @@
+BEGIN;
+
+CREATE TABLE vendor (
+	id SERIAL PRIMARY KEY,
+	name VARCHAR(100) NOT NULL,
+	address VARCHAR(100) NULL
+);
+
+CREATE TABLE product (
+	id SERIAL PRIMARY KEY,
+	name VARCHAR(100) NOT NULL,
+	price MONEY NOT NULL,
+	description VARCHAR(320) NULL,
+	vendor_id INT REFERENCES vendor(id) ON UPDATE CASCADE ON DELETE RESTRICT
+);
+
+CREATE TABLE orders (
+	id SERIAL PRIMARY KEY,
+	cost MONEY NOT NULL,
+	description VARCHAR(320) NULL
+);
+
+CREATE TABLE product_orders (
+	product_id INT,
+	order_id INT,
+	amount INT NOT NULL,
+	PRIMARY KEY (product_id, order_id),
+	FOREIGN KEY (product_id) REFERENCES product(id) ON UPDATE CASCADE ON DELETE RESTRICT,
+	FOREIGN KEY (order_id) REFERENCES orders(id) ON UPDATE CASCADE ON DELETE CASCADE
+);
+
+COMMIT;
