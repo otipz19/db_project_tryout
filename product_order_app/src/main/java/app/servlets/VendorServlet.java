@@ -27,21 +27,16 @@ public class VendorServlet extends HttpServlet {
             ObjectMapper jsonMapper = new ObjectMapper();
             PrintWriter writer = resp.getWriter();
             String idParam = req.getParameter("id");
-            if (idParam == null) {
-                List<VendorEntity> entities = repository.get();
-                List<VendorResponseDto> dtos = modelMapper.map(entities, new TypeToken<List<VendorEntity>>() {
-                }.getType());
-                String json = jsonMapper.writeValueAsString(dtos);
-                writer.write(json);
-                resp.setStatus(HttpServletResponse.SC_OK);
-            } else {
+            Object result;
+            if (idParam != null) {
                 int id = Integer.parseInt(idParam);
-                VendorEntity entity = repository.get(id);
-                VendorResponseDto dto = modelMapper.map(entity, VendorResponseDto.class);
-                String json = jsonMapper.writeValueAsString(dto);
-                writer.write(json);
-                resp.setStatus(HttpServletResponse.SC_OK);
+                result = get(id, repository, modelMapper);
+            } else {
+                result = get(repository, modelMapper);
             }
+            String json = jsonMapper.writeValueAsString(result);
+            writer.write(json);
+            resp.setStatus(HttpServletResponse.SC_OK);
         } catch (SQLException e) {
             resp.setStatus(HttpServletResponse.SC_INTERNAL_SERVER_ERROR);
         } catch (NumberFormatException e) {
@@ -49,5 +44,16 @@ public class VendorServlet extends HttpServlet {
         } catch (EntityNotFoundException e) {
             resp.setStatus(HttpServletResponse.SC_NOT_FOUND);
         }
+    }
+
+    private List<VendorResponseDto> get(VendorRepository repository, ModelMapper modelMapper) throws SQLException {
+        List<VendorEntity> entities = repository.get();
+        return modelMapper.map(entities, new TypeToken<List<VendorEntity>>() {
+        }.getType());
+    }
+
+    private VendorResponseDto get(int id, VendorRepository repository, ModelMapper modelMapper) throws SQLException, EntityNotFoundException {
+        VendorEntity entity = repository.get(id);
+        return modelMapper.map(entity, VendorResponseDto.class);
     }
 }
