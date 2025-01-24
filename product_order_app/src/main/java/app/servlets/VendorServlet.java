@@ -1,7 +1,7 @@
 package app.servlets;
 
 import controllerlib.ControllerResult;
-import controllerlib.annotations.GetMethod;
+import controllerlib.annotations.HttpGet;
 import controllerlib.annotations.NotRequiredQueryParam;
 import controllerlib.annotations.RequiredQueryParam;
 import app.controllers.VendorController;
@@ -13,6 +13,7 @@ import jakarta.servlet.annotation.WebServlet;
 import jakarta.servlet.http.HttpServlet;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
+import lombok.Data;
 
 import java.io.IOException;
 import java.lang.reflect.InvocationTargetException;
@@ -22,38 +23,95 @@ import java.util.Arrays;
 import java.util.List;
 import java.util.Map;
 
+@Data
+class ControllerMethodInfo {
+    Method method;
+    ControllerMethodParameterInfo[] parameterInfos;
+}
+
+@Data
+class ControllerMethodParameterInfo {
+    Parameter parameter;
+    String name = "";
+    ControllerMethodParameterType controllerParameterType = ControllerMethodParameterType.NOT_ANNOTATED;
+}
+
+enum ControllerMethodParameterType {
+    NOT_ANNOTATED,
+    REQUIRED_QUERY_PARAM,
+    NOT_REQUIRED_QUERY_PARAM,
+}
+
 @WebServlet("/vendor")
 public class VendorServlet extends HttpServlet {
-    private static final Class<VendorController> controllerClass = VendorController.class;
+    //    private static final Class[] REGISTERED_CONTROLLER_METHOD_PARAMETER_ANNOTATIONS = new Class[]{NotRequiredQueryParam.class, RequiredQueryParam.class};
+    private final Class<VendorController> controllerClass = VendorController.class;
+
+    private ControllerMethodInfo[] httpGetMethodInfos;
+
+    @Override
+    public void init() throws ServletException {
+        List<Method> httpGetMethods = Arrays.stream(controllerClass.getMethods())
+                .filter(method -> method.isAnnotationPresent(HttpGet.class))
+                .sorted((o1, o2) -> {
+                    int first = countRequiredQueryParamsOfMethod(o1);
+                    int second = countRequiredQueryParamsOfMethod(o2);
+                    return Integer.compare(second, first);
+                }).toList();
+
+        httpGetMethodInfos = new ControllerMethodInfo[httpGetMethods.size()];
+
+        for (int i = 0; i < httpGetMethods.size(); i++) {
+            Method method = httpGetMethods.get(i);
+            httpGetMethodInfos[i] = getControllerMethodInfo(method);
+        }
+    }
+
+    private static ControllerMethodInfo getControllerMethodInfo(Method method) {
+        var info = new ControllerMethodInfo();
+        info.method = method;
+        Parameter[] parameters = method.getParameters();
+        info.parameterInfos = new ControllerMethodParameterInfo[parameters.length];
+        for (int i = 0; i < parameters.length; i++) {
+            info.parameterInfos[i] = getControllerMethodParameterInfo(parameters[i]);
+        }
+        return info;
+    }
+
+    private static ControllerMethodParameterInfo getControllerMethodParameterInfo(Parameter parameter) {
+        var info = new ControllerMethodParameterInfo();
+        info.parameter = parameter;
+        if (parameter.isAnnotationPresent(RequiredQueryParam.class)) {
+            info.controllerParameterType = ControllerMethodParameterType.REQUIRED_QUERY_PARAM;
+            info.name = parameter.getAnnotationsByType(RequiredQueryParam.class)[0].value();
+        } else if (parameter.isAnnotationPresent(NotRequiredQueryParam.class)) {
+            info.controllerParameterType = ControllerMethodParameterType.NOT_REQUIRED_QUERY_PARAM;
+            info.name = parameter.getAnnotationsByType(NotRequiredQueryParam.class)[0].value();
+        } else {
+            info.controllerParameterType = ControllerMethodParameterType.NOT_ANNOTATED;
+        }
+        return info;
+    }
 
     protected void doGet(HttpServletRequest req, HttpServletResponse resp) throws ServletException, IOException {
         try {
-            Object controller = controllerClass.getConstructor().newInstance();
-
-            List<Method> getMethods = Arrays.stream(controllerClass.getMethods())
-                    .filter(method -> method.isAnnotationPresent(GetMethod.class))
-                    .sorted((o1, o2) -> {
-                        int first = countRequiredQueryParamsOfMethod(o1);
-                        int second = countRequiredQueryParamsOfMethod(o2);
-                        return Integer.compare(second, first);
-                    }).toList();
-
-            Method chosenMethod = null;
-            for (var method : getMethods) {
-                if (isMethodSatisfiedByRequiredQueryParams(method, req.getParameterMap())) {
-                    chosenMethod = method;
+            ControllerMethodInfo chosenMethodInfo = null;
+            for (var methodInfo : httpGetMethodInfos) {
+                if (isMethodSatisfiedByRequiredQueryParams(methodInfo, req.getParameterMap())) {
+                    chosenMethodInfo = methodInfo;
                     break;
                 }
             }
 
-            if (chosenMethod == null) {
+            if (chosenMethodInfo == null) {
                 resp.setStatus(HttpServletResponse.SC_BAD_REQUEST);
                 return;
             }
 
-            Object methodInvocationResult = chosenMethod.invoke(controller, getControllerMethodParameters(chosenMethod, req.getParameterMap()));
+            Object controller = controllerClass.getConstructor().newInstance();
+            Object methodInvocationResult = chosenMethodInfo.getMethod().invoke(controller, mapControllerMethodParameters(chosenMethodInfo, req.getParameterMap()));
             if (!methodInvocationResult.getClass().equals(ControllerResult.class)) {
-                throw new InvalidControllerMethodReturnTypeException(chosenMethod.getName());
+                throw new InvalidControllerMethodReturnTypeException(chosenMethodInfo.getMethod().getName());
             }
             var controllerResult = (ControllerResult) methodInvocationResult;
 
@@ -68,20 +126,20 @@ public class VendorServlet extends HttpServlet {
         }
     }
 
-    private static int countRequiredQueryParamsOfMethod(Method method) {
-        return getRequiredQueryParamsOfMethod(method).size();
-    }
-
-    private static boolean isMethodSatisfiedByRequiredQueryParams(Method method, Map<String, String[]> requestParamMap) {
-        List<Parameter> requiredParams = getRequiredQueryParamsOfMethod(method);
+    private static boolean isMethodSatisfiedByRequiredQueryParams(ControllerMethodInfo methodInfo, Map<String, String[]> requestParamMap) {
         boolean isSatisfied = true;
-        for (var param : requiredParams) {
-            if (!requestParamMap.containsKey(param.getAnnotationsByType(RequiredQueryParam.class)[0].value())) {
+        for (var param : methodInfo.parameterInfos) {
+            if (param.controllerParameterType == ControllerMethodParameterType.REQUIRED_QUERY_PARAM
+                    && !requestParamMap.containsKey(param.name)) {
                 isSatisfied = false;
                 break;
             }
         }
         return isSatisfied;
+    }
+
+    private static int countRequiredQueryParamsOfMethod(Method method) {
+        return getRequiredQueryParamsOfMethod(method).size();
     }
 
     private static List<Parameter> getRequiredQueryParamsOfMethod(Method method) {
@@ -90,31 +148,27 @@ public class VendorServlet extends HttpServlet {
                 .toList();
     }
 
-    private static Object[] getControllerMethodParameters(Method method, Map<String, String[]> requestParamMap) {
-        List<Parameter> parameters = Arrays.stream(method.getParameters()).toList();
-        Object[] result = new Object[parameters.size()];
+    private static Object[] mapControllerMethodParameters(ControllerMethodInfo methodInfo, Map<String, String[]> requestParamMap) {
+        Object[] result = new Object[methodInfo.parameterInfos.length];
 
         for (int i = 0; i < result.length; i++) {
-            Parameter parameter = parameters.get(i);
-            if (parameter.isAnnotationPresent(RequiredQueryParam.class)) {
-                String paramName = parameter.getAnnotationsByType(RequiredQueryParam.class)[0].value();
-                String requestParamValue = requestParamMap.get(paramName)[0];
-                result[i] = parseQueryParamValue(parameter, requestParamValue);
-            } else if (parameter.isAnnotationPresent(NotRequiredQueryParam.class)) {
-                String paramName = parameter.getAnnotationsByType(NotRequiredQueryParam.class)[0].value();
-                if (!requestParamMap.containsKey(paramName) || requestParamMap.get(paramName).length == 0) {
-                    result[i] = getDefaultValue(parameter.getType());
+            ControllerMethodParameterInfo parameterInfo = methodInfo.parameterInfos[i];
+            if (parameterInfo.controllerParameterType == ControllerMethodParameterType.REQUIRED_QUERY_PARAM) {
+                String requestParamValue = requestParamMap.get(parameterInfo.name)[0];
+                result[i] = parseQueryParamValue(parameterInfo.parameter, requestParamValue);
+            } else if (parameterInfo.controllerParameterType == ControllerMethodParameterType.NOT_REQUIRED_QUERY_PARAM) {
+                if (!requestParamMap.containsKey(parameterInfo.name) || requestParamMap.get(parameterInfo.name).length == 0) {
+                    result[i] = getDefaultValue(parameterInfo.parameter.getType());
                     continue;
                 }
-                String requestParamValue = requestParamMap.get(paramName)[0];
-                result[i] = parseQueryParamValue(parameter, requestParamValue);
+                String requestParamValue = requestParamMap.get(parameterInfo.name)[0];
+                result[i] = parseQueryParamValue(parameterInfo.parameter, requestParamValue);
             } else {
-                result[i] = getDefaultValue(parameter.getType());
+                result[i] = getDefaultValue(parameterInfo.parameter.getType());
             }
         }
         return result;
     }
-
 
     private static Object getDefaultValue(Class<?> type) {
         if (type.equals(int.class)) {

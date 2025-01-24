@@ -1,7 +1,7 @@
 package app.controllers;
 
 import controllerlib.ControllerResult;
-import controllerlib.annotations.GetMethod;
+import controllerlib.annotations.HttpGet;
 import controllerlib.annotations.NotRequiredQueryParam;
 import controllerlib.annotations.RequiredQueryParam;
 import app.dto.VendorResponseDto;
@@ -19,7 +19,7 @@ public class VendorController {
     private final VendorRepository repository = new VendorRepository();
     private final ModelMapper modelMapper = new ModelMapper();
 
-    @GetMethod
+    @HttpGet
     public ControllerResult<List<VendorResponseDto>> get() throws SQLException {
         try {
             List<VendorEntity> entities = repository.get();
@@ -31,7 +31,7 @@ public class VendorController {
         }
     }
 
-    @GetMethod
+    @HttpGet
     public ControllerResult<VendorResponseDto> get(@RequiredQueryParam("id") int id,
                                                    @NotRequiredQueryParam("count") int count,
                                                    String alwaysNull,
