@@ -2,6 +2,7 @@ package app.controllers;
 
 import controllerlib.ControllerResult;
 import controllerlib.annotations.GetMethod;
+import controllerlib.annotations.NotRequiredQueryParam;
 import controllerlib.annotations.RequiredQueryParam;
 import app.dto.VendorResponseDto;
 import app.entity.VendorEntity;
@@ -31,7 +32,10 @@ public class VendorController {
     }
 
     @GetMethod
-    public ControllerResult<VendorResponseDto> get(@RequiredQueryParam int id) {
+    public ControllerResult<VendorResponseDto> get(@RequiredQueryParam("id") int id,
+                                                   @NotRequiredQueryParam("count") int count,
+                                                   String alwaysNull,
+                                                   @NotRequiredQueryParam("name") String name) {
         try {
             VendorEntity entity = repository.get(id);
             VendorResponseDto dto = modelMapper.map(entity, VendorResponseDto.class);
