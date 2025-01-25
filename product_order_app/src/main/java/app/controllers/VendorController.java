@@ -1,5 +1,6 @@
 package app.controllers;
 
+import controllerlib.BaseController;
 import controllerlib.ControllerResult;
 import controllerlib.annotations.HttpGet;
 import controllerlib.annotations.NotRequiredQueryParam;
@@ -15,7 +16,7 @@ import org.modelmapper.TypeToken;
 import java.sql.SQLException;
 import java.util.List;
 
-public class VendorController {
+public class VendorController extends BaseController {
     private final VendorRepository repository = new VendorRepository();
     private final ModelMapper modelMapper = new ModelMapper();
 
