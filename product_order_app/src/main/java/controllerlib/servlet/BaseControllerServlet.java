@@ -1,7 +1,6 @@
 package controllerlib.servlet;
 
 import com.fasterxml.jackson.core.JsonProcessingException;
-import com.fasterxml.jackson.databind.DatabindException;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import controllerlib.BaseController;
 import controllerlib.ControllerResult;
@@ -71,21 +70,17 @@ public abstract class BaseControllerServlet extends HttpServlet {
                 return;
             }
 
-            Object controller = null;
-
-            controller = controllerClass.getConstructor().newInstance();
-
-            Object methodInvocationResult = chosenMethodInfo.getMethod().invoke(controller, mapControllerMethodParameters(chosenMethodInfo, req));
+            BaseController controller = controllerClass.getConstructor().newInstance();
             // It is guaranteed that return type is ControllerResult by check in the init method
-            var controllerResult = (ControllerResult) methodInvocationResult;
+            var controllerResult = (ControllerResult) chosenMethodInfo.getMethod().invoke(controller, mapControllerMethodParameters(chosenMethodInfo, req));
 
-            // TODO: check body presence, not status code
-            if (controllerResult.statusCode() == HttpServletResponse.SC_OK) {
+            if (controllerResult.resultObject() != null) {
                 String json = new ObjectMapper().writeValueAsString(controllerResult.resultObject());
                 resp.getWriter().write(json);
             }
+
             resp.setStatus(controllerResult.statusCode());
-        } catch (InvalidRequestContentTypeException | DatabindException e) {
+        } catch (InvalidRequestContentTypeException | JsonProcessingException e) {
             resp.setStatus(HttpServletResponse.SC_BAD_REQUEST);
         } catch (IOException e) {
             resp.setStatus(HttpServletResponse.SC_INTERNAL_SERVER_ERROR);
