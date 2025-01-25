@@ -3,13 +3,11 @@ package app.controllers;
 import controllerlib.BaseController;
 import controllerlib.ControllerResult;
 import controllerlib.annotations.HttpGet;
-import controllerlib.annotations.NotRequiredQueryParam;
 import controllerlib.annotations.RequiredQueryParam;
 import app.dto.VendorResponseDto;
 import app.entity.VendorEntity;
 import app.exceptions.EntityNotFoundException;
 import app.repositories.VendorRepository;
-import jakarta.servlet.http.HttpServletResponse;
 import org.modelmapper.ModelMapper;
 import org.modelmapper.TypeToken;
 
@@ -21,30 +19,27 @@ public class VendorController extends BaseController {
     private final ModelMapper modelMapper = new ModelMapper();
 
     @HttpGet
-    public ControllerResult<List<VendorResponseDto>> get() throws SQLException {
+    public ControllerResult<List<VendorResponseDto>> get() {
         try {
             List<VendorEntity> entities = repository.get();
             List<VendorResponseDto> dtos = modelMapper.map(entities, new TypeToken<List<VendorEntity>>() {
             }.getType());
-            return new ControllerResult<>(dtos, HttpServletResponse.SC_OK);
+            return Ok(dtos);
         } catch (SQLException e) {
-            return new ControllerResult<>(null, HttpServletResponse.SC_INTERNAL_SERVER_ERROR);
+            return InternalServerError();
         }
     }
 
     @HttpGet
-    public ControllerResult<VendorResponseDto> get(@RequiredQueryParam("id") int id,
-                                                   @NotRequiredQueryParam("count") int count,
-                                                   String alwaysNull,
-                                                   @NotRequiredQueryParam("name") String name) {
+    public ControllerResult<VendorResponseDto> get(@RequiredQueryParam("id") int id) {
         try {
             VendorEntity entity = repository.get(id);
             VendorResponseDto dto = modelMapper.map(entity, VendorResponseDto.class);
-            return new ControllerResult<>(dto, HttpServletResponse.SC_OK);
+            return Ok(dto);
         } catch (SQLException e) {
-            return new ControllerResult<>(null, HttpServletResponse.SC_INTERNAL_SERVER_ERROR);
+            return InternalServerError();
         } catch (EntityNotFoundException e) {
-            return new ControllerResult<>(null, HttpServletResponse.SC_NOT_FOUND);
+            return NotFound();
         }
     }
 }
