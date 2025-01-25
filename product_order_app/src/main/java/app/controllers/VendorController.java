@@ -47,7 +47,10 @@ public class VendorController extends BaseController {
     }
 
     @HttpPost
-    public ControllerResult<VendorViewDto> post(@FromRequestBody VendorViewDto viedDto) {
-        return Ok(viedDto);
+    public ControllerResult<String> post(
+            @FromRequestBody(isGenericCollection = true,
+                    collectionType = List.class,
+                    elementType = VendorViewDto.class) List<VendorViewDto> viedDtos) {
+        return Ok(viedDtos.get(0).getName());
     }
 }

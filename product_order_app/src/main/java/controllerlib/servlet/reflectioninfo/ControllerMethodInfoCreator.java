@@ -54,13 +54,18 @@ public class ControllerMethodInfoCreator {
         if (parameter.isAnnotationPresent(RequiredQueryParam.class)) {
             checkQueryParameterType(parameter);
             info.controllerParameterType = ControllerMethodParameterType.REQUIRED_QUERY_PARAM;
-            info.name = parameter.getAnnotationsByType(RequiredQueryParam.class)[0].value();
+            var annotation = parameter.getAnnotationsByType(RequiredQueryParam.class)[0];
+            info.annotation = annotation;
+            info.name = annotation.value();
         } else if (parameter.isAnnotationPresent(NotRequiredQueryParam.class)) {
             checkQueryParameterType(parameter);
             info.controllerParameterType = ControllerMethodParameterType.NOT_REQUIRED_QUERY_PARAM;
-            info.name = parameter.getAnnotationsByType(NotRequiredQueryParam.class)[0].value();
+            var annotation = parameter.getAnnotationsByType(NotRequiredQueryParam.class)[0];
+            info.annotation = annotation;
+            info.name = annotation.value();
         } else if (parameter.isAnnotationPresent(FromRequestBody.class)) {
             info.controllerParameterType = ControllerMethodParameterType.FROM_REQUEST_BODY;
+            info.annotation = parameter.getAnnotationsByType(FromRequestBody.class)[0];
         } else {
             info.controllerParameterType = ControllerMethodParameterType.NOT_ANNOTATED;
         }
