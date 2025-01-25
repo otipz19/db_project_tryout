@@ -1,4 +1,4 @@
-package controllerlib.servlet;
+package controllerlib.servlet.reflectioninfo;
 
 import controllerlib.BaseController;
 import controllerlib.ControllerResult;
@@ -14,7 +14,7 @@ import java.lang.reflect.Parameter;
 import java.util.Arrays;
 import java.util.List;
 
-class ControllerMethodInfoCreator {
+public class ControllerMethodInfoCreator {
     public static ControllerMethodInfo[] buildControllerMethodInfos(Class<? extends BaseController> controllerClass, Class<? extends Annotation> httpAnnotation) {
         List<Method> methods = Arrays.stream(controllerClass.getMethods())
                 .filter(method -> method.isAnnotationPresent(httpAnnotation))

@@ -1,11 +1,11 @@
-package controllerlib.servlet;
+package controllerlib.servlet.reflectioninfo;
 
 import lombok.Data;
 
 import java.lang.reflect.Parameter;
 
 @Data
-class ControllerMethodParameterInfo {
+public class ControllerMethodParameterInfo {
     Parameter parameter;
     String name = "";
     ControllerMethodParameterType controllerParameterType = ControllerMethodParameterType.NOT_ANNOTATED;

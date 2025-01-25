@@ -1,0 +1,10 @@
+package controllerlib.servlet.parameters.valuemappers;
+
+import controllerlib.exceptions.ControllerMethodParameterMappingException;
+import controllerlib.exceptions.InvalidRequestContentTypeException;
+import controllerlib.servlet.reflectioninfo.ControllerMethodParameterInfo;
+import jakarta.servlet.http.HttpServletRequest;
+
+public interface ControllerMethodParameterValueMapper {
+    Object mapValue(ControllerMethodParameterInfo parameterInfo, HttpServletRequest request) throws ControllerMethodParameterMappingException;
+}

@@ -1,6 +1,6 @@
 package controllerlib.servlet;
 
-class TypeUtils {
+public class TypeUtils {
     public static Object getDefaultValue(Class<?> type) {
         if (type.equals(int.class)) {
             return 0;

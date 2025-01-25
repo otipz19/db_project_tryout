@@ -1,11 +1,11 @@
-package controllerlib.servlet;
+package controllerlib.servlet.reflectioninfo;
 
 import lombok.Data;
 
 import java.lang.reflect.Method;
 
 @Data
-class ControllerMethodInfo {
+public class ControllerMethodInfo {
     Method method;
     ControllerMethodParameterInfo[] parameterInfos;
 }

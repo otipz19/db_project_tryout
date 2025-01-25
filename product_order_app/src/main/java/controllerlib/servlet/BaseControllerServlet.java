@@ -8,33 +8,35 @@ import controllerlib.annotations.HttpDelete;
 import controllerlib.annotations.HttpGet;
 import controllerlib.annotations.HttpPost;
 import controllerlib.annotations.HttpPut;
-import controllerlib.exceptions.InvalidRequestContentTypeException;
-import jakarta.servlet.ServletException;
+import controllerlib.exceptions.ControllerMethodParameterMappingException;
+import controllerlib.servlet.parameters.ControllerMethodParameterValueMappersContainer;
+import controllerlib.servlet.reflectioninfo.ControllerMethodInfo;
+import controllerlib.servlet.reflectioninfo.ControllerMethodParameterInfo;
+import controllerlib.servlet.reflectioninfo.ControllerMethodParameterType;
 import jakarta.servlet.http.HttpServlet;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
-import lombok.SneakyThrows;
 
 import java.io.IOException;
 import java.lang.reflect.InvocationTargetException;
 import java.util.Map;
 
-import static controllerlib.servlet.ControllerMethodInfoCreator.buildControllerMethodInfos;
-import static controllerlib.servlet.TypeUtils.getDefaultValue;
-import static controllerlib.servlet.TypeUtils.parsePrimitives;
+import static controllerlib.servlet.reflectioninfo.ControllerMethodInfoCreator.buildControllerMethodInfos;
 
 public abstract class BaseControllerServlet extends HttpServlet {
     private final Class<? extends BaseController> controllerClass = getControllerClass();
-
-    protected abstract Class<? extends BaseController> getControllerClass();
 
     private ControllerMethodInfo[] httpGetMethodInfos;
     private ControllerMethodInfo[] httpPostMethodInfos;
     private ControllerMethodInfo[] httpPutMethodInfos;
     private ControllerMethodInfo[] httpDeleteMethodInfos;
 
+    private final ControllerMethodParameterValueMappersContainer parameterValueMappers = new ControllerMethodParameterValueMappersContainer();
+
+    protected abstract Class<? extends BaseController> getControllerClass();
+
     @Override
-    public void init() throws ServletException {
+    public void init() {
         httpGetMethodInfos = buildControllerMethodInfos(controllerClass, HttpGet.class);
         httpPostMethodInfos = buildControllerMethodInfos(controllerClass, HttpPost.class);
         httpPutMethodInfos = buildControllerMethodInfos(controllerClass, HttpPut.class);
@@ -80,7 +82,7 @@ public abstract class BaseControllerServlet extends HttpServlet {
             }
 
             resp.setStatus(controllerResult.statusCode());
-        } catch (InvalidRequestContentTypeException | JsonProcessingException e) {
+        } catch (ControllerMethodParameterMappingException | JsonProcessingException e) {
             resp.setStatus(HttpServletResponse.SC_BAD_REQUEST);
         } catch (IOException e) {
             resp.setStatus(HttpServletResponse.SC_INTERNAL_SERVER_ERROR);
@@ -103,9 +105,9 @@ public abstract class BaseControllerServlet extends HttpServlet {
 
     private static boolean isMethodSatisfiedByRequiredQueryParams(ControllerMethodInfo methodInfo, Map<String, String[]> requestParamMap) {
         boolean isSatisfied = true;
-        for (var param : methodInfo.parameterInfos) {
-            if (param.controllerParameterType == ControllerMethodParameterType.REQUIRED_QUERY_PARAM
-                    && !requestParamMap.containsKey(param.name)) {
+        for (var param : methodInfo.getParameterInfos()) {
+            if (param.getControllerParameterType() == ControllerMethodParameterType.REQUIRED_QUERY_PARAM
+                    && !requestParamMap.containsKey(param.getName())) {
                 isSatisfied = false;
                 break;
             }
@@ -113,35 +115,12 @@ public abstract class BaseControllerServlet extends HttpServlet {
         return isSatisfied;
     }
 
-    private static Object[] mapControllerMethodParameters(ControllerMethodInfo methodInfo, HttpServletRequest request) throws InvalidRequestContentTypeException, IOException {
-        Object[] result = new Object[methodInfo.parameterInfos.length];
-        Map<String, String[]> requestParamMap = request.getParameterMap();
+    private Object[] mapControllerMethodParameters(ControllerMethodInfo methodInfo, HttpServletRequest request) throws ControllerMethodParameterMappingException {
+        Object[] result = new Object[methodInfo.getParameterInfos().length];
 
         for (int i = 0; i < result.length; i++) {
-            ControllerMethodParameterInfo parameterInfo = methodInfo.parameterInfos[i];
-
-            if (parameterInfo.controllerParameterType == ControllerMethodParameterType.REQUIRED_QUERY_PARAM) {
-                String requestParamValue = requestParamMap.get(parameterInfo.name)[0];
-                result[i] = parsePrimitives(parameterInfo.parameter.getType(), requestParamValue);
-            } else if (parameterInfo.controllerParameterType == ControllerMethodParameterType.NOT_REQUIRED_QUERY_PARAM) {
-                if (!requestParamMap.containsKey(parameterInfo.name) || requestParamMap.get(parameterInfo.name).length == 0) {
-                    result[i] = getDefaultValue(parameterInfo.parameter.getType());
-                    continue;
-                }
-
-                // TODO: extract method
-                String requestParamValue = requestParamMap.get(parameterInfo.name)[0];
-                result[i] = parsePrimitives(parameterInfo.parameter.getType(), requestParamValue);
-            } else if (parameterInfo.controllerParameterType == ControllerMethodParameterType.FROM_REQUEST_BODY) {
-                String expectedContentType = "application/json";
-                String actualContentType = request.getContentType();
-                if (actualContentType == null || !actualContentType.equals(expectedContentType)) {
-                    throw new InvalidRequestContentTypeException(expectedContentType, actualContentType);
-                }
-                result[i] = new ObjectMapper().readValue(request.getReader(), parameterInfo.parameter.getType());
-            } else {
-                result[i] = getDefaultValue(parameterInfo.parameter.getType());
-            }
+            ControllerMethodParameterInfo parameterInfo = methodInfo.getParameterInfos()[i];
+            result[i] = parameterValueMappers.mapValue(parameterInfo, request);
         }
         return result;
     }
