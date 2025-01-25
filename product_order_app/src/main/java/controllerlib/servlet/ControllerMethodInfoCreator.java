@@ -2,6 +2,7 @@ package controllerlib.servlet;
 
 import controllerlib.BaseController;
 import controllerlib.ControllerResult;
+import controllerlib.annotations.FromRequestBody;
 import controllerlib.annotations.NotRequiredQueryParam;
 import controllerlib.annotations.RequiredQueryParam;
 import controllerlib.exceptions.InvalidControllerMethodReturnTypeException;
@@ -58,6 +59,8 @@ class ControllerMethodInfoCreator {
             checkQueryParameterType(parameter);
             info.controllerParameterType = ControllerMethodParameterType.NOT_REQUIRED_QUERY_PARAM;
             info.name = parameter.getAnnotationsByType(NotRequiredQueryParam.class)[0].value();
+        } else if (parameter.isAnnotationPresent(FromRequestBody.class)) {
+            info.controllerParameterType = ControllerMethodParameterType.FROM_REQUEST_BODY;
         } else {
             info.controllerParameterType = ControllerMethodParameterType.NOT_ANNOTATED;
         }

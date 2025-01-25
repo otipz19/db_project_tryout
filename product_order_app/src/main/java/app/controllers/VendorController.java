@@ -1,8 +1,11 @@
 package app.controllers;
 
+import app.dto.VendorViewDto;
 import controllerlib.BaseController;
 import controllerlib.ControllerResult;
+import controllerlib.annotations.FromRequestBody;
 import controllerlib.annotations.HttpGet;
+import controllerlib.annotations.HttpPost;
 import controllerlib.annotations.RequiredQueryParam;
 import app.dto.VendorResponseDto;
 import app.entity.VendorEntity;
@@ -41,5 +44,10 @@ public class VendorController extends BaseController {
         } catch (EntityNotFoundException e) {
             return NotFound();
         }
+    }
+
+    @HttpPost
+    public ControllerResult<VendorViewDto> post(@FromRequestBody VendorViewDto viedDto) {
+        return Ok(viedDto);
     }
 }

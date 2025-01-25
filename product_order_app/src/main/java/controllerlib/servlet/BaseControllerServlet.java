@@ -1,5 +1,7 @@
 package controllerlib.servlet;
 
+import com.fasterxml.jackson.core.JsonProcessingException;
+import com.fasterxml.jackson.databind.DatabindException;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import controllerlib.BaseController;
 import controllerlib.ControllerResult;
@@ -7,12 +9,15 @@ import controllerlib.annotations.HttpDelete;
 import controllerlib.annotations.HttpGet;
 import controllerlib.annotations.HttpPost;
 import controllerlib.annotations.HttpPut;
+import controllerlib.exceptions.InvalidRequestContentTypeException;
 import jakarta.servlet.ServletException;
 import jakarta.servlet.http.HttpServlet;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
 import lombok.SneakyThrows;
 
+import java.io.IOException;
+import java.lang.reflect.InvocationTargetException;
 import java.util.Map;
 
 import static controllerlib.servlet.ControllerMethodInfoCreator.buildControllerMethodInfos;
@@ -21,6 +26,7 @@ import static controllerlib.servlet.TypeUtils.parsePrimitives;
 
 public abstract class BaseControllerServlet extends HttpServlet {
     private final Class<? extends BaseController> controllerClass = getControllerClass();
+
     protected abstract Class<? extends BaseController> getControllerClass();
 
     private ControllerMethodInfo[] httpGetMethodInfos;
@@ -56,25 +62,37 @@ public abstract class BaseControllerServlet extends HttpServlet {
         processRequest(this.httpDeleteMethodInfos, req, resp);
     }
 
-    @SneakyThrows
     private void processRequest(ControllerMethodInfo[] methodInfos, HttpServletRequest req, HttpServletResponse resp) {
-        ControllerMethodInfo chosenMethodInfo = chooseMethod(methodInfos, req);
+        try {
+            ControllerMethodInfo chosenMethodInfo = chooseMethod(methodInfos, req);
 
-        if (chosenMethodInfo == null) {
+            if (chosenMethodInfo == null) {
+                resp.setStatus(HttpServletResponse.SC_BAD_REQUEST);
+                return;
+            }
+
+            Object controller = null;
+
+            controller = controllerClass.getConstructor().newInstance();
+
+            Object methodInvocationResult = chosenMethodInfo.getMethod().invoke(controller, mapControllerMethodParameters(chosenMethodInfo, req));
+            // It is guaranteed that return type is ControllerResult by check in the init method
+            var controllerResult = (ControllerResult) methodInvocationResult;
+
+            // TODO: check body presence, not status code
+            if (controllerResult.statusCode() == HttpServletResponse.SC_OK) {
+                String json = new ObjectMapper().writeValueAsString(controllerResult.resultObject());
+                resp.getWriter().write(json);
+            }
+            resp.setStatus(controllerResult.statusCode());
+        } catch (InvalidRequestContentTypeException | DatabindException e) {
             resp.setStatus(HttpServletResponse.SC_BAD_REQUEST);
-            return;
+        } catch (IOException e) {
+            resp.setStatus(HttpServletResponse.SC_INTERNAL_SERVER_ERROR);
+        } catch (InstantiationException | IllegalAccessException | InvocationTargetException |
+                 NoSuchMethodException e) {
+            throw new RuntimeException(e);
         }
-
-        Object controller = controllerClass.getConstructor().newInstance();
-        Object methodInvocationResult = chosenMethodInfo.getMethod().invoke(controller, mapControllerMethodParameters(chosenMethodInfo, req.getParameterMap()));
-        // It is guaranteed that return type is ControllerResult by check in the init method
-        var controllerResult = (ControllerResult) methodInvocationResult;
-
-        if (controllerResult.statusCode() == HttpServletResponse.SC_OK) {
-            String json = new ObjectMapper().writeValueAsString(controllerResult.resultObject());
-            resp.getWriter().write(json);
-        }
-        resp.setStatus(controllerResult.statusCode());
     }
 
     private ControllerMethodInfo chooseMethod(ControllerMethodInfo[] methodInfos, HttpServletRequest req) {
@@ -100,8 +118,9 @@ public abstract class BaseControllerServlet extends HttpServlet {
         return isSatisfied;
     }
 
-    private static Object[] mapControllerMethodParameters(ControllerMethodInfo methodInfo, Map<String, String[]> requestParamMap) {
+    private static Object[] mapControllerMethodParameters(ControllerMethodInfo methodInfo, HttpServletRequest request) throws InvalidRequestContentTypeException, IOException {
         Object[] result = new Object[methodInfo.parameterInfos.length];
+        Map<String, String[]> requestParamMap = request.getParameterMap();
 
         for (int i = 0; i < result.length; i++) {
             ControllerMethodParameterInfo parameterInfo = methodInfo.parameterInfos[i];
@@ -115,8 +134,16 @@ public abstract class BaseControllerServlet extends HttpServlet {
                     continue;
                 }
 
+                // TODO: extract method
                 String requestParamValue = requestParamMap.get(parameterInfo.name)[0];
                 result[i] = parsePrimitives(parameterInfo.parameter.getType(), requestParamValue);
+            } else if (parameterInfo.controllerParameterType == ControllerMethodParameterType.FROM_REQUEST_BODY) {
+                String expectedContentType = "application/json";
+                String actualContentType = request.getContentType();
+                if (actualContentType == null || !actualContentType.equals(expectedContentType)) {
+                    throw new InvalidRequestContentTypeException(expectedContentType, actualContentType);
+                }
+                result[i] = new ObjectMapper().readValue(request.getReader(), parameterInfo.parameter.getType());
             } else {
                 result[i] = getDefaultValue(parameterInfo.parameter.getType());
             }
