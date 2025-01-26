@@ -23,7 +23,7 @@ public class TypeUtils {
         }
     }
 
-    public static Object parsePrimitives(Class type, String stringValue) {
+    public static Object parsePrimitives(Class<?> type, String stringValue) {
         if (type.equals(String.class)) {
             return stringValue;
         } else if (type.equals(int.class)) {
@@ -40,8 +40,10 @@ public class TypeUtils {
             return Long.parseLong(stringValue);
         } else if (type.equals(short.class)) {
             return Short.parseShort(stringValue);
-        } else {
+        } else if(type.equals(byte.class)){
             return Byte.parseByte(stringValue);
+        } else {
+            throw new RuntimeException("Not primitive");
         }
     }
 }
