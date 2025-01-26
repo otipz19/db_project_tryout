@@ -1,7 +1,7 @@
 package app.servlets;
 
 import app.controllers.VendorController;
-import controllerlib.BaseController;
+import controllerlib.controller.BaseController;
 import controllerlib.servlet.BaseControllerServlet;
 import jakarta.servlet.annotation.WebServlet;
 

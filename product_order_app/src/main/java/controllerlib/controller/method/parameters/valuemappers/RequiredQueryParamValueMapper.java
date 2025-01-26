@@ -1,9 +1,9 @@
-package controllerlib.servlet.parameters.valuemappers;
+package controllerlib.controller.method.parameters.valuemappers;
 
-import controllerlib.servlet.reflectioninfo.ControllerMethodParameterInfo;
+import controllerlib.controller.method.reflectioninfo.ControllerMethodParameterInfo;
 import jakarta.servlet.http.HttpServletRequest;
 
-import static controllerlib.servlet.TypeUtils.parsePrimitives;
+import static controllerlib.TypeUtils.parsePrimitives;
 
 public class RequiredQueryParamValueMapper implements ControllerMethodParameterValueMapper {
     @Override

@@ -2,126 +2,89 @@ package controllerlib.servlet;
 
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
-import controllerlib.BaseController;
-import controllerlib.ControllerResult;
 import controllerlib.annotations.HttpDelete;
 import controllerlib.annotations.HttpGet;
 import controllerlib.annotations.HttpPost;
 import controllerlib.annotations.HttpPut;
+import controllerlib.controller.BaseController;
+import controllerlib.controller.ControllerResult;
+import controllerlib.controller.method.ControllerMethodAdapter;
 import controllerlib.exceptions.ControllerMethodParameterMappingException;
-import controllerlib.servlet.parameters.ControllerMethodParameterValueMappersContainer;
-import controllerlib.servlet.reflectioninfo.ControllerMethodInfo;
-import controllerlib.servlet.reflectioninfo.ControllerMethodParameterInfo;
-import controllerlib.servlet.reflectioninfo.ControllerMethodParameterType;
 import jakarta.servlet.http.HttpServlet;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
 
 import java.io.IOException;
-import java.lang.reflect.InvocationTargetException;
-import java.util.Map;
 
-import static controllerlib.servlet.reflectioninfo.ControllerMethodInfoCreator.buildControllerMethodInfos;
+import static controllerlib.controller.method.reflectioninfo.ControllerMethodAdapterCreator.buildControllerMethodAdapters;
 
 public abstract class BaseControllerServlet extends HttpServlet {
     private final Class<? extends BaseController> controllerClass = getControllerClass();
 
-    private ControllerMethodInfo[] httpGetMethodInfos;
-    private ControllerMethodInfo[] httpPostMethodInfos;
-    private ControllerMethodInfo[] httpPutMethodInfos;
-    private ControllerMethodInfo[] httpDeleteMethodInfos;
-
-    private final ControllerMethodParameterValueMappersContainer parameterValueMappers = new ControllerMethodParameterValueMappersContainer();
+    private ControllerMethodAdapter[] httpGetMethodAdapters;
+    private ControllerMethodAdapter[] httpPostMethodAdapters;
+    private ControllerMethodAdapter[] httpPutMethodAdapters;
+    private ControllerMethodAdapter[] httpDeleteMethodAdapters;
 
     protected abstract Class<? extends BaseController> getControllerClass();
 
     @Override
     public void init() {
-        httpGetMethodInfos = buildControllerMethodInfos(controllerClass, HttpGet.class);
-        httpPostMethodInfos = buildControllerMethodInfos(controllerClass, HttpPost.class);
-        httpPutMethodInfos = buildControllerMethodInfos(controllerClass, HttpPut.class);
-        httpDeleteMethodInfos = buildControllerMethodInfos(controllerClass, HttpDelete.class);
+        httpGetMethodAdapters = buildControllerMethodAdapters(controllerClass, HttpGet.class);
+        httpPostMethodAdapters = buildControllerMethodAdapters(controllerClass, HttpPost.class);
+        httpPutMethodAdapters = buildControllerMethodAdapters(controllerClass, HttpPut.class);
+        httpDeleteMethodAdapters = buildControllerMethodAdapters(controllerClass, HttpDelete.class);
     }
 
     @Override
     protected void doGet(HttpServletRequest req, HttpServletResponse resp) {
-        processRequest(this.httpGetMethodInfos, req, resp);
+        processRequest(this.httpGetMethodAdapters, req, resp);
     }
 
     @Override
     protected void doPost(HttpServletRequest req, HttpServletResponse resp) {
-        processRequest(this.httpPostMethodInfos, req, resp);
+        processRequest(this.httpPostMethodAdapters, req, resp);
     }
 
     @Override
     protected void doPut(HttpServletRequest req, HttpServletResponse resp) {
-        processRequest(this.httpPutMethodInfos, req, resp);
+        processRequest(this.httpPutMethodAdapters, req, resp);
     }
 
     @Override
     protected void doDelete(HttpServletRequest req, HttpServletResponse resp) {
-        processRequest(this.httpDeleteMethodInfos, req, resp);
+        processRequest(this.httpDeleteMethodAdapters, req, resp);
     }
 
-    private void processRequest(ControllerMethodInfo[] methodInfos, HttpServletRequest req, HttpServletResponse resp) {
+    private void processRequest(ControllerMethodAdapter[] methodAdapters, HttpServletRequest req, HttpServletResponse resp) {
         try {
-            ControllerMethodInfo chosenMethodInfo = chooseMethod(methodInfos, req);
+            ControllerMethodAdapter chosenMethodAdapter = chooseMethodAdapter(methodAdapters, req);
 
-            if (chosenMethodInfo == null) {
-                resp.setStatus(HttpServletResponse.SC_BAD_REQUEST);
+            if (chosenMethodAdapter == null) {
+                resp.setStatus(HttpServletResponse.SC_NOT_FOUND);
                 return;
             }
 
-            BaseController controller = controllerClass.getConstructor().newInstance();
-            // It is guaranteed that return type is ControllerResult by check in the init method
-            var controllerResult = (ControllerResult) chosenMethodInfo.getMethod().invoke(controller, mapControllerMethodParameters(chosenMethodInfo, req));
+            ControllerResult<?> controllerResult = chosenMethodAdapter.invoke(req);
 
+            resp.setStatus(controllerResult.statusCode());
             if (controllerResult.resultObject() != null) {
                 String json = new ObjectMapper().writeValueAsString(controllerResult.resultObject());
                 resp.getWriter().write(json);
             }
-
-            resp.setStatus(controllerResult.statusCode());
         } catch (ControllerMethodParameterMappingException | JsonProcessingException e) {
             resp.setStatus(HttpServletResponse.SC_BAD_REQUEST);
         } catch (IOException e) {
             resp.setStatus(HttpServletResponse.SC_INTERNAL_SERVER_ERROR);
-        } catch (InstantiationException | IllegalAccessException | InvocationTargetException |
-                 NoSuchMethodException e) {
-            throw new RuntimeException(e);
         }
     }
 
-    private ControllerMethodInfo chooseMethod(ControllerMethodInfo[] methodInfos, HttpServletRequest req) {
-        ControllerMethodInfo chosenMethodInfo = null;
-        for (var methodInfo : methodInfos) {
-            if (isMethodSatisfiedByRequiredQueryParams(methodInfo, req.getParameterMap())) {
-                chosenMethodInfo = methodInfo;
-                break;
+    private ControllerMethodAdapter chooseMethodAdapter(ControllerMethodAdapter[] methodAdapters, HttpServletRequest req) {
+        for (var methodAdapter : methodAdapters) {
+            if (methodAdapter.isMethodSatisfiedByRequiredQueryParams(req.getParameterMap())) {
+                return methodAdapter;
             }
         }
-        return chosenMethodInfo;
-    }
-
-    private static boolean isMethodSatisfiedByRequiredQueryParams(ControllerMethodInfo methodInfo, Map<String, String[]> requestParamMap) {
-        boolean isSatisfied = true;
-        for (var param : methodInfo.getParameterInfos()) {
-            if (param.getControllerParameterType() == ControllerMethodParameterType.REQUIRED_QUERY_PARAM
-                    && !requestParamMap.containsKey(param.getName())) {
-                isSatisfied = false;
-                break;
-            }
-        }
-        return isSatisfied;
-    }
-
-    private Object[] mapControllerMethodParameters(ControllerMethodInfo methodInfo, HttpServletRequest request) throws ControllerMethodParameterMappingException {
-        Object[] result = new Object[methodInfo.getParameterInfos().length];
-
-        for (int i = 0; i < result.length; i++) {
-            ControllerMethodParameterInfo parameterInfo = methodInfo.getParameterInfos()[i];
-            result[i] = parameterValueMappers.mapValue(parameterInfo, request);
-        }
-        return result;
+        return null;
     }
 }

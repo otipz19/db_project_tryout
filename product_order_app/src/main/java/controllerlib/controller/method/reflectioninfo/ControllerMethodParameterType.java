@@ -1,4 +1,4 @@
-package controllerlib.servlet.reflectioninfo;
+package controllerlib.controller.method.reflectioninfo;
 
 public enum ControllerMethodParameterType {
     NOT_ANNOTATED,

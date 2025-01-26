@@ -1,11 +1,11 @@
-package controllerlib.servlet.parameters.valuemappers;
+package controllerlib.controller.method.parameters.valuemappers;
 
 import com.fasterxml.jackson.databind.JavaType;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import controllerlib.annotations.FromRequestBody;
 import controllerlib.exceptions.ControllerMethodParameterMappingException;
 import controllerlib.exceptions.InvalidRequestContentTypeException;
-import controllerlib.servlet.reflectioninfo.ControllerMethodParameterInfo;
+import controllerlib.controller.method.reflectioninfo.ControllerMethodParameterInfo;
 import jakarta.servlet.http.HttpServletRequest;
 
 import java.io.IOException;

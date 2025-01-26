@@ -1,9 +1,9 @@
-package controllerlib.servlet.parameters;
+package controllerlib.controller.method.parameters;
 
 import controllerlib.exceptions.ControllerMethodParameterMappingException;
-import controllerlib.servlet.parameters.valuemappers.*;
-import controllerlib.servlet.reflectioninfo.ControllerMethodParameterInfo;
-import controllerlib.servlet.reflectioninfo.ControllerMethodParameterType;
+import controllerlib.controller.method.parameters.valuemappers.*;
+import controllerlib.controller.method.reflectioninfo.ControllerMethodParameterInfo;
+import controllerlib.controller.method.reflectioninfo.ControllerMethodParameterType;
 import jakarta.servlet.http.HttpServletRequest;
 
 import java.lang.reflect.InvocationTargetException;

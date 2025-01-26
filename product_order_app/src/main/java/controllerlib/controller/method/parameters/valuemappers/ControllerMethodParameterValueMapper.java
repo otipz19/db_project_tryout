@@ -1,8 +1,7 @@
-package controllerlib.servlet.parameters.valuemappers;
+package controllerlib.controller.method.parameters.valuemappers;
 
 import controllerlib.exceptions.ControllerMethodParameterMappingException;
-import controllerlib.exceptions.InvalidRequestContentTypeException;
-import controllerlib.servlet.reflectioninfo.ControllerMethodParameterInfo;
+import controllerlib.controller.method.reflectioninfo.ControllerMethodParameterInfo;
 import jakarta.servlet.http.HttpServletRequest;
 
 public interface ControllerMethodParameterValueMapper {

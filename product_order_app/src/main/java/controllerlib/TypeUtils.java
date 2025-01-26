@@ -1,4 +1,4 @@
-package controllerlib.servlet;
+package controllerlib;
 
 public class TypeUtils {
     public static Object getDefaultValue(Class<?> type) {

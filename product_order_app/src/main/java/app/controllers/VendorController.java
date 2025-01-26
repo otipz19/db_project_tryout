@@ -1,8 +1,8 @@
 package app.controllers;
 
 import app.dto.VendorViewDto;
-import controllerlib.BaseController;
-import controllerlib.ControllerResult;
+import controllerlib.controller.BaseController;
+import controllerlib.controller.ControllerResult;
 import controllerlib.annotations.FromRequestBody;
 import controllerlib.annotations.HttpGet;
 import controllerlib.annotations.HttpPost;
