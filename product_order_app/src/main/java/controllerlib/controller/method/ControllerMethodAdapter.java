@@ -19,7 +19,7 @@ import java.util.LinkedList;
 import java.util.List;
 import java.util.Map;
 
-public class ControllerMethodAdapter {
+public class ControllerMethodAdapter implements Comparable<ControllerMethodAdapter> {
     // TODO: Combine ParameterInfo and value mappers
     private static final ControllerMethodParameterValueMappersContainer parameterValueMappers = new ControllerMethodParameterValueMappersContainer();
 
@@ -104,5 +104,11 @@ public class ControllerMethodAdapter {
             result[i] = parameterValueMappers.mapValue(parameterInfo, request);
         }
         return result;
+    }
+
+    @Override
+    public int compareTo(ControllerMethodAdapter other) {
+        // reversed intentionally
+        return Integer.compare(other.requiredParameterInfos.size(), this.requiredParameterInfos.size());
     }
 }
