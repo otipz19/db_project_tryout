@@ -1,4 +1,4 @@
-package controllerlib.controller.method;
+package controllerlib.controller.method.adapters;
 
 import com.google.common.collect.TreeMultiset;
 import controllerlib.controller.BaseController;
