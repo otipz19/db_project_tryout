@@ -1,12 +1,12 @@
 package app.controllers;
 
 import app.dto.VendorViewDto;
-import controllerlib.controller.BaseController;
-import controllerlib.controller.ControllerResult;
-import controllerlib.annotations.FromRequestBody;
-import controllerlib.annotations.HttpGet;
-import controllerlib.annotations.HttpPost;
-import controllerlib.annotations.RequiredQueryParam;
+import controllerlib.exposed.BaseController;
+import controllerlib.exposed.ControllerResult;
+import controllerlib.exposed.annotations.FromRequestBody;
+import controllerlib.exposed.annotations.HttpGet;
+import controllerlib.exposed.annotations.HttpPost;
+import controllerlib.exposed.annotations.RequiredQueryParam;
 import app.dto.VendorResponseDto;
 import app.entity.VendorEntity;
 import app.exceptions.EntityNotFoundException;
